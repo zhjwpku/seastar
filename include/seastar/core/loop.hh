@@ -25,6 +25,7 @@
 #include <iterator>
 #include <memory>
 #include <vector>
+#include <type_traits>
 
 #include <seastar/core/future.hh>
 #include <seastar/core/task.hh>
@@ -108,9 +109,9 @@ future<> repeat(AsyncAction& action) noexcept = delete;
 /// \return a ready future if we stopped successfully, or a failed future if
 ///         a call to to \c action failed.
 template<typename AsyncAction>
-SEASTAR_CONCEPT( requires seastar::InvokeReturns<AsyncAction, stop_iteration> || seastar::InvokeReturns<AsyncAction, future<stop_iteration>> )
 inline
 future<> repeat(AsyncAction&& action) noexcept {
+    static_assert(std::is_invocable_r_v<stop_iteration, AsyncAction> || std::is_invocable_r_v<future<stop_iteration>, AsyncAction>);
     using futurator = futurize<std::result_of_t<AsyncAction()>>;
     static_assert(std::is_same<future<stop_iteration>, typename futurator::type>::value, "bad AsyncAction signature");
     for (;;) {
@@ -326,9 +327,9 @@ public:
 /// \return a ready future if we stopped successfully, or a failed future if
 ///         a call to to \c action or a call to \c stop_cond failed.
 template<typename AsyncAction, typename StopCondition>
-SEASTAR_CONCEPT( requires seastar::InvokeReturns<StopCondition, bool> && seastar::InvokeReturns<AsyncAction, future<>> )
 inline
 future<> do_until(StopCondition stop_cond, AsyncAction action) noexcept {
+    static_assert(std::is_invocable_r_v<bool, StopCondition> && std::is_invocable_r_v<future<>, AsyncAction>);
     using namespace internal;
     for (;;) {
       try {
@@ -362,9 +363,9 @@ future<> do_until(StopCondition stop_cond, AsyncAction action) noexcept {
 ///        that becomes ready when you wish it to be called again.
 /// \return a future<> that will resolve to the first failure of \c action
 template<typename AsyncAction>
-SEASTAR_CONCEPT( requires seastar::InvokeReturns<AsyncAction, future<>> )
 inline
 future<> keep_doing(AsyncAction action) noexcept {
+    static_assert(std::is_invocable_r_v<future<>, AsyncAction>);
     return repeat([action = std::move(action)] () mutable {
         return action().then([] {
             return stop_iteration::no;

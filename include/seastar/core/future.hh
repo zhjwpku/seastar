@@ -1096,15 +1096,6 @@ concept CanApplyTuple
         { std::apply(func, std::get<0>(std::move(wrapped_val))) };
     };
 
-template <typename Func, typename Return, typename... T>
-concept InvokeReturns = requires (Func f, T... args) {
-    { f(std::forward<T>(args)...) } -> std::same_as<Return>;
-};
-
-// Deprecated alias
-template <typename Func, typename Return, typename... T>
-concept ApplyReturns = InvokeReturns<Func, Return, T...>;
-
 template <typename Func, typename... T>
 concept InvokeReturnsAnyFuture = requires (Func f, T... args) {
     requires is_future<decltype(f(std::forward<T>(args)...))>::value;
@@ -1822,11 +1813,6 @@ public:
     /// successful value; Because handle_exception() is used here on a
     /// future<>, the handler function does not need to return anything.
     template <typename Func>
-    /* Broken?
-    SEASTAR_CONCEPT( requires ::seastar::InvokeReturns<Func, future<T...>, std::exception_ptr>
-                    || (sizeof...(T) == 0 && ::seastar::InvokeReturns<Func, void, std::exception_ptr>)
-                    || (sizeof...(T) == 1 && ::seastar::InvokeReturns<Func, T..., std::exception_ptr>)
-    ) */
     future<T SEASTAR_ELLIPSIS> handle_exception(Func&& func) noexcept {
         return then_wrapped([func = std::forward<Func>(func)]
                              (auto&& fut) mutable -> future<T SEASTAR_ELLIPSIS> {
